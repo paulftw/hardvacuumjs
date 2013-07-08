@@ -1,0 +1,78 @@
+Artillery:
+
+  artil1
+  artil3
+
+Air:
+
+  balloon1
+
+  copter
+  copter2
+
+
+Animals:
+  
+  beast
+  crow
+  gull
+
+
+
+Water:
+  
+  boat1
+  boat2 - round boat
+  boat3 - very fast boat
+  
+  seamnstr
+
+Land:
+  
+  builder1 - standard
+  builder2 - fat
+  builder3 - tiny or dead?
+  builder4 - tiny open
+  builder5 - even smaller than 3
+
+  miner
+  mother???
+  
+  scout1 - tiny round
+  scout2 - lenghtened
+  
+  seed - round big thingy sized between scout and builder
+
+  tank1 - ugly prism 
+  tank2 - is it a round turret for tank1
+  tank3 - set of 4 or 5 tanks
+  tank4 - set of 3 or 4 tanks
+  tank5 - big tank with appendix
+  tank5a,b,c,d - same as 5 but in colors
+  tank6 - triangular tank
+  tank7 - open head tank
+  tank8 - trident turret?
+  tank9 - tank base?
+  tank10 - wtf?
+  tank11 - artil on wheels?
+  tank12 - better than tank11
+  tank13 - weird base?
+  tank14 - weird base with mini gun
+  tank15 - turret?
+  tank16 - wtf?
+  tankb1 - 3 or 4 tanks?
+  tankb2 - more tanks or bases?
+  tankbase - tank base?
+  turret 1 and turret2
+  
+  transport - big ugly box
+ 
+  
+ 
+
+Space?
+
+  ship1 - normal rocket with red tail
+  ship2 - cooler rocket with atachment
+  
+

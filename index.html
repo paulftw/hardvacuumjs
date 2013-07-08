@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1" />
+  <style>
+    body {
+      padding: 5px;
+      background-image: url('img/brickwall.png');
+    }
+    #maincanvas {
+      height: 400px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      user-select: none;
+      width: 480px;
+      height: 300px;
+      -ms-user-select: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-drag: none;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id=maincanvas width=320 height=200>
+  </canvas>
+</body>
+
+<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+<script src="js/deps/lodash.min.js"></script>
+<script src="js/deps/backbone-min.js"></script>
+<script src="js/deps/pathfinding-browser.min.js"></script>
+
+<script data-main="js/main" src="js/deps/require.js"></script>
+<script>
+</script>
+</html>
