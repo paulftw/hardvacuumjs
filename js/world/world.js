@@ -150,16 +150,21 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
             return new Timer(duration);
         }
 
-        for (var dx = -1; dx <= 1; dx++) {
-            for (var dy = -1; dy <= 1; dy++) {
-                if (!dx && !dy) {
-                    continue;
+        var loadBuilder = function(index) {
+            for (var dx = -1; dx <= 1; dx++) {
+                for (var dy = -1; dy <= 1; dy++) {
+                    if (!dx && !dy) {
+                        continue;
+                    }
+                    sprites.register('Builder' + index, {dx: dx, dy: dy},
+                                     'originals/vehicles/Builder' + index + '.bmp',
+                                     [sprites.BgFilter(sprites.TransparentGreen),
+                                      sprites.ExtractRegionFilter(21 + dx * 20, 21 + dy * 20, 21 + dx * 20 + 19, 21 + dy * 20 + 19)]);
                 }
-                sprites.register('Builder1', {dx: dx, dy: dy}, 'originals/vehicles/Builder1.bmp',
-                                       [sprites.BgFilter(sprites.TransparentGreen),
-                                        sprites.ExtractRegionFilter(21 + dx * 20, 21 + dy * 20, 21 + dx * 20 + 19, 21 + dy * 20 + 19)]);
             }
-        }
+        };
+
+        _.each(_.range(1, 5), loadBuilder);
 
         self.scrollX = 0;
         self.scrollY = 0;

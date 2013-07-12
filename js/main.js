@@ -23,7 +23,7 @@ define([
 
   interface.buttons.hummer.on('click', function() {
       // hummer clicked. Spawn a random worker.
-      var bot = new mod_world.RoamingBot(world, 'Builder1', 3, 2);
+      var bot = new mod_world.RoamingBot(world, 'Builder' + (1 + Math.floor(Math.random()*5)), 3, 2);
       world.add(bot);
   });
 
