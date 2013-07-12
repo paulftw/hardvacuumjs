@@ -2,6 +2,7 @@ define(['../sprites', '../input'], function(sprites, input) {
 
     var Button = function( x, y, w, h) {
         var self = {};
+        _.extend(self, Backbone.Events);
         self.pressed = false;
 
         var isHit = function(e) {
@@ -35,8 +36,21 @@ define(['../sprites', '../input'], function(sprites, input) {
                 return true;
             }
             self.pressed = false;
-            // TODO: trigger click.
-            console.log('i click');
+            self.trigger('click');
+            return false;
+        });
+
+        self.listenTo(input.Input, 'touchend', function(e) {
+            if (e.changed.length != 1) {
+                return false;
+            }
+            if (isHit({ x: e.changed[0].x, y: e.changed[0].y }) && isHit({ x: e.changed[0].startX, y: e.changed[0].startY })) {
+                self.pressed = true;
+                _.delay(function() {
+                    self.pressed = false;
+                    self.trigger('click');
+                }, 200);
+            }
             return false;
         });
 
@@ -60,6 +74,7 @@ define(['../sprites', '../input'], function(sprites, input) {
             var self = Button(screenPos.x, screenPos.y, 23, 18);
             self.drawUp = sprites.Drawer(spriteName, {state: 'up'}, screenPos.x, screenPos.y);
             self.drawDown = sprites.Drawer(spriteName, {state: 'down'}, screenPos.x, screenPos.y);
+            self.sprite = spriteName;
             return self;
         };
     };

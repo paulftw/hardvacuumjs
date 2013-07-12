@@ -1,51 +1,68 @@
-define(['../sprites'], function(sprites) {
+define(['../sprites', '../gameloop'], function(sprites, gameloop) {
    
     // World must be initialized with timestamp 0.
 
-    var timer = function(world, duration, loop) {
-        var self = {
-            world: world,
-            duration: duration,
-            running: false,
-            startTime: -1,
-            loop: !!loop
-        };
-        _.extend(self, Backbone.Events);
+    var Timer = function(duration, loop) {
+        _.extend(this, Backbone.Events);
+        _.bindAll(this);
 
-        self.start = function(now) {
-            self.running = true;
-            self.ended = false;
-            self.startTime = now;
-            return self;
-        };
-
-        self.live = function(now) {
-            this.now = now;
-            if (!self.running) {
-                return;
-            }
-            if (self.startTime + self.duration <= now) {
-                self.running = false;
-                self.ended = true;
-                if (self.loop) {
-                    self.start(now);
-                }
-            }
-        };
-        self.progress = function() {
-            if (self.ended) {
-                return 1;
-            }
-            if (!self.running) {
-                return 0;
-            }
-            return (this.now - this.startTime) / this.duration;
-        };
-        self.listenTo(world, 'tick', self.live);
-
-        return self;
+        this.duration = duration;
+        this.running = false;
+        this.startTime = -1;
+        this.loop = !!loop;
+        this.subscribed = false;
     };
-    var animation = function(timer, frames) {
+
+    Timer.prototype.subscribe = function() {
+        if (this.subscribed) {
+            return;
+        }
+        this.subscribed = true;
+        this.listenTo(gameloop.Loop, 'tick', this.live);
+    };
+
+    Timer.prototype.unsubscribe = function() {
+        if (!this.subscribed) {
+            return;
+        }
+        this.subscribed = false;
+        this.stopListening(gameloop.Loop);
+    };
+
+    Timer.prototype.start = function(when) {
+        this.running = true;
+        this.ended = false;
+        this.startTime = when || gameloop.Loop.now;
+
+        this.subscribe();
+        return this;
+    };
+
+    Timer.prototype.live = function(data) {
+        if (!this.running) {
+            return;
+        }
+        if (this.startTime + this.duration <= data.now) {
+            this.running = false;
+            this.ended = true;
+            if (this.loop) {
+                this.start(data.now);
+            } else {
+                this.unsubscribe();
+            }
+        }
+    };
+    Timer.prototype.progress = function() {
+        if (this.ended) {
+            return 1;
+        }
+        if (!this.running) {
+            return 0;
+        }
+        return (gameloop.Loop.now - this.startTime) / this.duration;
+    };
+
+    var Animation = function(timer, frames) {
         var self = {
             timer: timer,
             frames: frames
@@ -67,7 +84,7 @@ define(['../sprites'], function(sprites) {
         _.extend(self, Backbone.Events);
 
         self.timer = function(duration) {
-            return timer(self, duration);
+            return new Timer(duration);
         }
 
         for (var dx = -1; dx <= 1; dx++) {
@@ -124,16 +141,16 @@ define(['../sprites'], function(sprites) {
                 return {x: x, y: y};
             };
 
-            this.live = function(timestamp) {
+            this.live = function(data) {
                 if (!this.initialized) {
-                    this.init(timestamp);
+                    this.init(data.now);
                 }
 
                 if (this.timer.ended) {
                     this.x += this.dx;
                     this.y += this.dy;
                     this.randDir();
-                    this.timer.start(timestamp);
+                    this.timer.start(data.now);
                 }
             };
         };
@@ -183,11 +200,11 @@ define(['../sprites'], function(sprites) {
 
         // Base size is 2x2, with -20px margin
         var Base = function(world, x, y) {
-            this.live = function(now) {
+            this.live = function(data) {
                 if (!this.timer) {
                     this.timer = world.timer(1000, true);
-                    this.timer.start(now);
-                    this.anim = animation(this.timer, [
+                    this.timer.start(data.now);
+                    this.anim = new Animation(this.timer, [
                         {
                          anim: 'pump',
                          frame: 0,
@@ -215,7 +232,7 @@ define(['../sprites'], function(sprites) {
                     ]);
                 }
                 if (this.timer.ended) {
-                    this.timer.start(now);
+                    this.timer.start(data.now);
                 }
             };
             this.render = function(canvas, sx, sy) {
@@ -225,8 +242,7 @@ define(['../sprites'], function(sprites) {
         };
 
 
-        self.live = function(now) {
-            self.trigger('tick', now);
+        self.live = function(data) {
             if (!self.unit) {
                 self.unit = new Unit(self, 'Builder1', 3, 3);
             }
@@ -234,10 +250,10 @@ define(['../sprites'], function(sprites) {
                 self.base = new Base(self, 8, 2);
             }
 
-            self.scrollLive(now);
-            self.unit.live(now);
+            self.scrollLive(data.now);
+            self.unit.live(data.now);
 
-            self.base.live(now);
+            self.base.live(data.now);
         };
 
         self.render = function(canvas) {
@@ -247,6 +263,9 @@ define(['../sprites'], function(sprites) {
             self.base.render(canvas, self.scrollX, self.scrollY);
         };
         _.bindAll(self);
+
+        self.listenTo(gameloop.Loop, 'tick', self.live);
+
         return self;
     };
 

@@ -1,10 +1,12 @@
-define(['misc/polyfill'], function(polyfill) {
+define(['gameloop'], function(gameloop) {
 
     var Screen = function(canvasId) {
+        _.extend(this, Backbone.Events);
+        _.bindAll(this);
+
         var el = document.getElementById(canvasId);
         this.canvas = el.getContext("2d");
-
-        this.active = false;
+        gameloop.Loop.animateCanvas(this.canvas);
 
         this.Layers = {
             World: 0,
@@ -15,46 +17,23 @@ define(['misc/polyfill'], function(polyfill) {
 
         this.objects = {};
 
-        this.start = function() {
-            this.active = true;
-            requestAnimationFrame(this.animate);
-        };
-        this.stop = function() {
-            this.active = false;
-        };
+        this.listenTo(gameloop.Loop, 'render', this.render);
+    };
+    
+    Screen.prototype.add = function(object, layer) {
+        this.objects[layer] = this.objects[layer] || [];
+        this.objects[layer].push(object);
+    };
 
-        this.add = function(object, layer) {
-            this.objects[layer] = this.objects[layer] || [];
-            this.objects[layer].push(object);
-        };
+    Screen.prototype.render = function() {
+        var canvas = this.canvas;
+        canvas.clearRect(0, 0, 320, 240);
 
-        this.live = function(timestamp) {
-            for (var i = 0; i < this.layerCount; i++) {
-                 _.each(this.objects[i], function(e) {
-                     e.live(timestamp);
-                 });
-            }
-        };
-
-        this.animate = function(timestamp) {
-            if (!this.active) {
-                return;
-            }
-            this.live(timestamp);
-
-            var canvas = this.canvas;
-            canvas.clearRect(0, 0, 320, 240);
-
-            for (var i = 0; i < this.layerCount; i++) {
-                 _.each(this.objects[i], function(e) {
-                     e.render(canvas);
-                 });
-            }
-            requestAnimationFrame(this.animate);
-        };
-
-        _.extend(this, Backbone.Events);
-        _.bindAll(this);
+        for (var i = 0; i < this.layerCount; i++) {
+             _.each(this.objects[i], function(e) {
+                 e.render(canvas);
+             });
+        }
     };
 
     return {

@@ -30,7 +30,4 @@ define([
   });
   gameScreen.add(world, gameScreen.Layers.World);
 
-
-  gameScreen.start();
-
 });
