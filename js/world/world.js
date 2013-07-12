@@ -72,7 +72,69 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
             return self.frames[x];
         };
         return self;
-    }
+    };
+
+    var Unit = function(world, spriteName, x, y) {
+        _.extend(this, Backbone.Events);
+        _.bindAll(this);
+
+        this.world = world;
+        this.x = x;
+        this.y = y;
+        this.sprite = spriteName;
+        this.initialized = false;
+    };
+    
+    Unit.prototype.randDir = function() {
+        var facing = Math.round(Math.random() * 7) * Math.PI / 4;
+        this.dx = Math.round(Math.sin(facing));
+        this.dy = Math.round(Math.cos(facing));
+
+        var tx = this.x + this.dx;
+        if (tx < 0 || tx >= this.world.sizeX) {
+            this.dx *= -1;
+        }
+        var ty = this.y + this.dy;
+        if (ty < 0 || ty >= this.world.sizeY) {
+            this.dy *= -1;
+        }
+    };
+
+    Unit.prototype.init = function(now) {
+        this.listenTo(this.world, 'tick', this.live);
+
+        this.randDir();
+        this.timer = this.world.timer(500);
+        this.timer.start(now);
+        this.initialized = true;
+    };
+
+    Unit.prototype.render = function(canvas, sx, sy) {
+        var pos = this.getPosition();
+        var drawer = sprites.Drawer(this.sprite, {dx: this.dx, dy: this.dy},
+                                    pos.x - sx, 40 + pos.y - sy);
+        drawer(canvas);
+    };
+
+    Unit.prototype.getPosition = function() {
+        var x = 20 * (this.x + this.dx * this.timer.progress());
+        var y = 20 * (this.y + this.dy * this.timer.progress());
+        return {x: x, y: y};
+    };
+
+    Unit.prototype.live = function(data) {
+        if (!this.initialized) {
+            this.init(data.now);
+        }
+
+        if (this.timer.ended) {
+            this.x += this.dx;
+            this.y += this.dy;
+            this.randDir();
+            this.timer.start(data.now);
+        }
+    };
+
 
     var World = function(options) {
         var self = {
@@ -80,6 +142,7 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
             terrain: options.terrain,
             sizeX: options.terrain.width,
             sizeY: options.terrain.height,
+            objects: [],
         };
         _.extend(self, Backbone.Events);
 
@@ -97,63 +160,6 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
                                         sprites.ExtractRegionFilter(21 + dx * 20, 21 + dy * 20, 21 + dx * 20 + 19, 21 + dy * 20 + 19)]);
             }
         }
-
-        var Unit = function(world, spriteName, x, y) {
-            _.extend(this, Backbone.Events);
-            this.world = world;
-            this.x = x;
-            this.y = y;
-            this.sprite = spriteName;
-            this.randDir = function() {
-                var facing = Math.round(Math.random() * 7) * Math.PI / 4;
-                this.dx = Math.round(Math.sin(facing));
-                this.dy = Math.round(Math.cos(facing));
-
-                var tx = this.x + this.dx;
-                if (tx < 0 || tx >= this.world.sizeX) {
-                    this.dx *= -1;
-                }
-                var ty = this.y + this.dy;
-                if (ty < 0 || ty >= this.world.sizeY) {
-                    this.dy *= -1;
-                }
-            }
-
-            this.initialized = false;
-            this.init = function(now) {
-                this.listenTo(this.world, 'tick', this.live);
-
-                this.randDir();
-                this.timer = this.world.timer(500);
-                this.timer.start(now);
-                this.initialized = true;
-            };
-
-            this.render = function(canvas, sx, sy) {
-                var pos = this.getPosition();
-                var drawer = sprites.Drawer(this.sprite, {dx: this.dx, dy: this.dy}, pos.x - sx, 40 + pos.y - sy);
-                drawer(canvas);
-            };
-
-            this.getPosition = function() {
-                var x = 20 * (this.x + this.dx * this.timer.progress());
-                var y = 20 * (this.y + this.dy * this.timer.progress());
-                return {x: x, y: y};
-            };
-
-            this.live = function(data) {
-                if (!this.initialized) {
-                    this.init(data.now);
-                }
-
-                if (this.timer.ended) {
-                    this.x += this.dx;
-                    this.y += this.dy;
-                    this.randDir();
-                    this.timer.start(data.now);
-                }
-            };
-        };
 
         self.scrollX = 0;
         self.scrollY = 0;
@@ -245,23 +251,34 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
         self.live = function(data) {
             if (!self.unit) {
                 self.unit = new Unit(self, 'Builder1', 3, 3);
+                self.objects.push(self.unit);
             }
             if (!self.base) {
                 self.base = new Base(self, 8, 2);
+                self.objects.push(self.base);
             }
 
             self.scrollLive(data.now);
-            self.unit.live(data.now);
 
-            self.base.live(data.now);
+            _.each(self.objects, function(o) {
+                o.live(data.now);
+            });
         };
 
         self.render = function(canvas) {
             self.terrain.setScroll(self.scrollX, self.scrollY);
             self.terrain.render(canvas);
-            self.unit.render(canvas, self.scrollX, self.scrollY);
-            self.base.render(canvas, self.scrollX, self.scrollY);
+
+            _.each(self.objects, function(o) {
+                o.render(canvas, self.scrollX, self.scrollY);
+            });
         };
+
+        self.add = function(obj) {
+            self.objects.push(obj);
+        };
+
+
         _.bindAll(self);
 
         self.listenTo(gameloop.Loop, 'tick', self.live);
@@ -270,6 +287,7 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
     };
 
     return {
-        World: World
+        World: World,
+        RoamingBot: Unit,
     };
 });

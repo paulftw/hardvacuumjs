@@ -2,17 +2,17 @@ define(['../sprites', './buttons'], function(sprites, buttons) {
 
     var InGameInterface = function() {
         var self = {};
-        self.buttons = [
-            buttons.BtnHand(),
-            buttons.BtnGrid(),
-            buttons.BtnChart(),
-            buttons.BtnPlane(),
-            buttons.BtnRadar(),
-            buttons.BtnHummer(),
-            buttons.BtnQuestion(),
-            buttons.BtnDisk(),
-            buttons.BtnFloppy()
-        ];
+        self.buttons = {
+            hand: buttons.BtnHand(),
+            grid: buttons.BtnGrid(),
+            chart: buttons.BtnChart(),
+            plane: buttons.BtnPlane(),
+            radar: buttons.BtnRadar(),
+            hummer: buttons.BtnHummer(),
+            question: buttons.BtnQuestion(),
+            disk: buttons.BtnDisk(),
+            floppy: buttons.BtnFloppy()
+        };
         sprites.register('interface-ingame', null, 'originals/Interface/Intrface.bmp',
                 [sprites.BgFilter(sprites.TransparentGreen), sprites.ClearRectFilter(0, 40, 240, 200)]);
 
@@ -20,7 +20,7 @@ define(['../sprites', './buttons'], function(sprites, buttons) {
 
         self.render = function(canvas) {
             self.draw(canvas);
-            self.buttons.forEach(function(button) {
+            _.each(self.buttons, function(button) {
                 button.render(canvas);
             });
         };
