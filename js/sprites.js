@@ -163,7 +163,7 @@ define([], function() {
                 self.sprites[name] = self.sprites[name] || {};
                 imageData = cloneImage(imageData);
                 imageData = makeImage(filterChain(imageData, filters));
-                console.log(imageData.width, imageData.height);
+                //console.log(name, JSON.stringify(options), imageData.width, imageData.height);
                 self.sprites[name][JSON.stringify(options)] = imageData;
             });
         },

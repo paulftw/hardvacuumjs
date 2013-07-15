@@ -1,4 +1,4 @@
-define(['../sprites', '../gameloop'], function(sprites, gameloop) {
+define(['../sprites', '../gameloop', './unit'], function(sprites, gameloop, unit) {
    
     // World must be initialized with timestamp 0.
 
@@ -30,12 +30,16 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
     };
 
     Timer.prototype.start = function(when) {
+        if (this.running) {
+            throw new Error('Timer already running!');
+        }
         this.running = true;
         this.ended = false;
         this.startTime = when || gameloop.Loop.now;
 
         this.subscribe();
-        return this;
+        this.deferred = Q.defer();
+        return this.deferred.promise;
     };
 
     Timer.prototype.live = function(data) {
@@ -49,9 +53,12 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
                 this.start(data.now);
             } else {
                 this.unsubscribe();
+                this.deferred.resolve(this);
+                delete this.deferred;
             }
         }
     };
+
     Timer.prototype.progress = function() {
         if (this.ended) {
             return 1;
@@ -74,67 +81,6 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
         return self;
     };
 
-    var Unit = function(world, spriteName, x, y) {
-        _.extend(this, Backbone.Events);
-        _.bindAll(this);
-
-        this.world = world;
-        this.x = x;
-        this.y = y;
-        this.sprite = spriteName;
-        this.initialized = false;
-    };
-    
-    Unit.prototype.randDir = function() {
-        var facing = Math.round(Math.random() * 7) * Math.PI / 4;
-        this.dx = Math.round(Math.sin(facing));
-        this.dy = Math.round(Math.cos(facing));
-
-        var tx = this.x + this.dx;
-        if (tx < 0 || tx >= this.world.sizeX) {
-            this.dx *= -1;
-        }
-        var ty = this.y + this.dy;
-        if (ty < 0 || ty >= this.world.sizeY) {
-            this.dy *= -1;
-        }
-    };
-
-    Unit.prototype.init = function(now) {
-        this.listenTo(this.world, 'tick', this.live);
-
-        this.randDir();
-        this.timer = this.world.timer(500);
-        this.timer.start(now);
-        this.initialized = true;
-    };
-
-    Unit.prototype.render = function(canvas, sx, sy) {
-        var pos = this.getPosition();
-        var drawer = sprites.Drawer(this.sprite, {dx: this.dx, dy: this.dy},
-                                    pos.x - sx, 40 + pos.y - sy);
-        drawer(canvas);
-    };
-
-    Unit.prototype.getPosition = function() {
-        var x = 20 * (this.x + this.dx * this.timer.progress());
-        var y = 20 * (this.y + this.dy * this.timer.progress());
-        return {x: x, y: y};
-    };
-
-    Unit.prototype.live = function(data) {
-        if (!this.initialized) {
-            this.init(data.now);
-        }
-
-        if (this.timer.ended) {
-            this.x += this.dx;
-            this.y += this.dy;
-            this.randDir();
-            this.timer.start(data.now);
-        }
-    };
-
 
     var World = function(options) {
         var self = {
@@ -149,22 +95,6 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
         self.timer = function(duration) {
             return new Timer(duration);
         }
-
-        var loadBuilder = function(index) {
-            for (var dx = -1; dx <= 1; dx++) {
-                for (var dy = -1; dy <= 1; dy++) {
-                    if (!dx && !dy) {
-                        continue;
-                    }
-                    sprites.register('Builder' + index, {dx: dx, dy: dy},
-                                     'originals/vehicles/Builder' + index + '.bmp',
-                                     [sprites.BgFilter(sprites.TransparentGreen),
-                                      sprites.ExtractRegionFilter(21 + dx * 20, 21 + dy * 20, 21 + dx * 20 + 19, 21 + dy * 20 + 19)]);
-                }
-            }
-        };
-
-        _.each(_.range(1, 5), loadBuilder);
 
         self.scrollX = 0;
         self.scrollY = 0;
@@ -255,7 +185,7 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
 
         self.live = function(data) {
             if (!self.unit) {
-                self.unit = new Unit(self, 'Builder1', 3, 3);
+                self.unit = new unit.Unit(self, 'Builder1', 3, 3);
                 self.objects.push(self.unit);
             }
             if (!self.base) {
@@ -293,6 +223,6 @@ define(['../sprites', '../gameloop'], function(sprites, gameloop) {
 
     return {
         World: World,
-        RoamingBot: Unit,
+        RoamingBot: unit.Unit,
     };
 });

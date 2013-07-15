@@ -40,19 +40,38 @@ define(['../sprites', '../input'], function(sprites, input) {
             return false;
         });
 
-        self.listenTo(input.Input, 'touchend', function(e) {
+        self.updateStatus = function(e) {
             if (e.changed.length != 1) {
+                self.pressed = false;
+                return;
+            }
+            var hit = isHit({ x: e.changed[0].x, y: e.changed[0].y }) &&
+                      isHit({ x: e.changed[0].startX, y: e.changed[0].startY });
+            self.pressed = self.pressed && cur;
+        };
+
+        self.listenTo(input.Input, 'touchstart', function(e) {
+            self.pressed = true;
+            self.updateStatus(e);
+            return !self.pressed;
+        });
+
+        self.listenTo(input.Input, 'touchmove', function(e) {
+            self.updateStatus(e);
+            return !self.pressed;
+        });
+
+        self.listenTo(input.Input, 'touchend', function(e) {
+            self.updateStatus(e);
+            if (self.pressed) {
+                self.pressed = false;
+                self.trigger('click');
                 return false;
             }
-            if (isHit({ x: e.changed[0].x, y: e.changed[0].y }) && isHit({ x: e.changed[0].startX, y: e.changed[0].startY })) {
-                self.pressed = true;
-                _.delay(function() {
-                    self.pressed = false;
-                    self.trigger('click');
-                }, 200);
-            }
-            return false;
+            return true;
         });
+
+        // TODO - listenTo touchcancel
 
         self.render = function(canvas) {
             self.pressed && self.drawDown(canvas);

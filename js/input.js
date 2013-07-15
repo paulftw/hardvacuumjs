@@ -38,7 +38,7 @@ define([], function() {
     var touchPos = function(touch) {
         return {
             x: (touch.pageX - canvas_x) / canvas_zoom,
-            y: (touch.pageY - canvas_y) / canvas_zoom,
+            y: (touch.pageY - canvas_y) / canvas_zoom
         };
     };
 

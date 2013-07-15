@@ -1,6 +1,6 @@
 
 var terrain = new Terrain(/* json data */);
-var world = new World();
+var world = new World(terrain);
 
 var interface = new InGameInterface();
 
