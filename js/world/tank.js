@@ -44,38 +44,37 @@ define(['../sprites', './geometry', './unit'], function(sprites, geometry, unit)
     };
     Turret.prototype.render = function(canvas, opts) {
         if (this.dir == 0) {
-            opts.x+=2;
-            opts.y-=1;
+            opts.x+=0.05*2;
+            opts.y-=0.05*1;
         }
         if (this.dir == 1) {
-            opts.y-=3;
-            opts.x+=3;
+            opts.y-=0.05*3;
+            opts.x+=0.05*3;
         }
         if (this.dir == 2) {
-            opts.y-=2;
+            opts.y-=0.05*2;
         }
         if (this.dir == 3) {
-            opts.y-=3.5;
-            opts.x-=2.5;
+            opts.y-=0.05*3.5;
+            opts.x-=0.05*2.5;
         }
         if (this.dir == 4) {
-            opts.x-=1;
+            opts.x-=0.05*1;
         }
         if (this.dir == 5) {
-            opts.x-=3;
-            opts.y+=1;
+            opts.x-=0.05*3;
+            opts.y+=0.05*1;
         }
         if (this.dir == 6) {
-            opts.x+=1;
-            opts.y+=1;
+            opts.x+=0.05*1;
+            opts.y+=0.05*1;
         }
         if (this.dir == 7) {
-            opts.x+=4;
-            opts.y+=1;
+            opts.x+=0.05*4;
+            opts.y+=0.05*1;
         }
-        var drawer = sprites.Drawer(this.sprite, {type: this.type, base: this.base, dir: this.dir},
-                                    opts.x, opts.y);
-        drawer(canvas);
+        var drawer = sprites.Drawer(this.sprite, {type: this.type, base: this.base, dir: this.dir});
+        canvas.world_draw(drawer, opts.x, opts.y);
     };
    
 
@@ -107,13 +106,10 @@ define(['../sprites', './geometry', './unit'], function(sprites, geometry, unit)
         this.baseDir = 0;
     };
 
-    Tank.prototype.render = function(canvas, sx, sy) {
-        var x = this.x * 20 - sx;
-        var y = 40 + this.y * 20 - sy;
-        var drawer = sprites.Drawer('TankBase', {size: this.size, dir: this.dir},
-                                    x, y);
-        drawer(canvas);
-        this.turret.render(canvas, {x: x, y: y});
+    Tank.prototype.render = function(canvas) {
+        var drawer = sprites.Drawer('TankBase', {size: this.size, dir: this.dir});
+        canvas.world_draw(drawer, this.x, this.y);
+        this.turret.render(canvas, {x: this.x, y: this.y});
     };
 
     Tank.prototype.live = function(data) {

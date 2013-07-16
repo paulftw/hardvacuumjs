@@ -1,4 +1,5 @@
-define(['../sprites', '../gameloop', './unit'], function(sprites, gameloop, unit) {
+define(['../sprites', '../gameloop', './unit', 'input', 'interface/outlines'],
+       function(sprites, gameloop, unit, input, outlines) {
    
     // World must be initialized with timestamp 0.
 
@@ -81,6 +82,56 @@ define(['../sprites', '../gameloop', './unit'], function(sprites, gameloop, unit
         return self;
     };
 
+    // Base size is 2x2, with -20px margin
+    var Base = function(world, x, y) {
+        this.world = world;
+        this.x = x;
+        this.y = y;
+    };
+    Base.prototype.render = function(canvas) {
+        var drawer = sprites.Drawer('Base', this.anim.current());
+        canvas.world_draw(drawer, this.x, this.y-1);
+    };
+
+    Base.prototype.live = function(data) {
+        if (!this.timer) {
+            this.collider.lock(this.x, this.y);
+            this.collider.lock(this.x+1, this.y);
+            this.collider.lock(this.x, this.y+1);
+            this.collider.lock(this.x+1, this.y+1);
+            this.timer = this.world.timer(1000, true);
+            this.timer.start(data.now);
+            this.anim = new Animation(this.timer, [
+                {
+                 anim: 'pump',
+                 frame: 0,
+                },
+                {
+                 anim: 'pump',
+                 frame: 1,
+                },
+                {
+                 anim: 'pump',
+                 frame: 2,
+                },
+                {
+                 anim: 'pump',
+                 frame: 3,
+                },
+                {
+                 anim: 'pump',
+                 frame: 2,
+                },
+                {
+                 anim: 'pump',
+                 frame: 1,
+                },
+            ]);
+        }
+        if (this.timer.ended) {
+            this.timer.start(data.now);
+        }
+    };
 
     var World = function(options) {
         var self = {
@@ -88,13 +139,62 @@ define(['../sprites', '../gameloop', './unit'], function(sprites, gameloop, unit
             terrain: options.terrain,
             sizeX: options.terrain.width,
             sizeY: options.terrain.height,
-            objects: [],
+            objects: []
         };
         _.extend(self, Backbone.Events);
 
         self.timer = function(duration) {
             return new Timer(duration);
         }
+
+        var resolveInput = function(pos) {
+            var x = Math.floor((pos.x + self.scrollX) / 20);
+            var y = Math.floor((pos.y - 40 + self.scrollY) / 20);
+            return {x:x, y:y};
+        };
+        self.listenTo(input.Input, 'drag', function(e) {
+            var p1 = resolveInput(e.cur);
+            var p2 = resolveInput(e.start);
+            self.frame = new outlines.RectFrame(outlines.Frame.Colors.Red, Math.min(p1.x, p2.x), Math.min(p1.y, p2.y),
+                                   Math.max(p1.x, p2.x), Math.max(p1.y, p2.y));
+        });
+        self.listenTo(input.Input, 'dragend', function(e) {
+            self.selectAll(self.frame.x1, self.frame.y1, self.frame.x2 + 1, self.frame.y2 + 1);
+            delete self.frame;
+        });
+        self.listenTo(input.Input, 'tap', function(e) {
+            if (e.x >= 240 || e.y < 40) {
+                return;
+            }
+            var pos = resolveInput(e);
+            var tg = self.findAll(pos.x, pos.y, pos.x + 1, pos.y + 1);
+            if (tg.length) {
+                self.selectAll(pos.x, pos.y, pos.x + 1, pos.y + 1);
+            } else {
+            }
+        });
+
+        self.findAll = function(x1, y1, x2, y2) {
+            return _.filter(self.objects, function(o) {
+                return (o.x >= x1 && o.x < x2 && o.y >= y1 && o.y < y2);
+            });
+        };
+
+        self.getSelected = function() {
+            return _.filter(self.objects, function(o) {
+                return o.selected;
+            });
+        };
+
+        self.selectAll = function(x1, y1, x2, y2) {
+            _.each(self.objects, function(o) {
+                o.selected = false;
+                if (o.x >= x1 && o.x < x2 && o.y >= y1 && o.y < y2) {
+                    o.selected = true;
+                }
+            });
+
+        };
 
         self.scrollX = 0;
         self.scrollY = 0;
@@ -108,11 +208,13 @@ define(['../sprites', '../gameloop', './unit'], function(sprites, gameloop, unit
                 return;
             }
             var target = self.unit.getPosition();
-            target.x = Math.max(target.x - 110, 0);
-            target.y = Math.max(target.y - 90, 0);
+            target.x = target.x*20 - 110;
+            target.y = target.y*20 - 90;
+            target.x = Math.max(target.x, 0);
+            target.y = Math.max(target.y, 0);
 
             target.x = Math.min(target.x, self.terrain.width * 20 - 240);
-            target.y = Math.min(target.y, self.terrain.height * 20 - 200);
+            target.y = Math.min(target.y, self.terrain.height * 20 - 160);
 
             var dx = (target.x - self.scrollX);
             var dy = (target.y - self.scrollY);
@@ -139,58 +241,36 @@ define(['../sprites', '../gameloop', './unit'], function(sprites, gameloop, unit
                      sprites.ExtractRegionFilter(60 * i, 81, 60 * i + 60, 141)]);
         }
 
-        // Base size is 2x2, with -20px margin
-        var Base = function(world, x, y) {
-            this.live = function(data) {
-                if (!this.timer) {
-                    this.timer = world.timer(1000, true);
-                    this.timer.start(data.now);
-                    this.anim = new Animation(this.timer, [
-                        {
-                         anim: 'pump',
-                         frame: 0,
-                        },
-                        {
-                         anim: 'pump',
-                         frame: 1,
-                        },
-                        {
-                         anim: 'pump',
-                         frame: 2,
-                        },
-                        {
-                         anim: 'pump',
-                         frame: 3,
-                        },
-                        {
-                         anim: 'pump',
-                         frame: 2,
-                        },
-                        {
-                         anim: 'pump',
-                         frame: 1,
-                        },
-                    ]);
+        var collider = {
+            locked: {},
+            lock: function(x, y) {
+                var p = [x, y].join(' ');
+                if (this.locked[p]) {
+                    return false;
                 }
-                if (this.timer.ended) {
-                    this.timer.start(data.now);
-                }
-            };
-            this.render = function(canvas, sx, sy) {
-                var drawer = sprites.Drawer('Base', this.anim.current(), x * 20 - sx, 40 + (y * 20 - 20) - sy);
-                drawer(canvas);
-            };
+                this.locked[p] = 1;
+                return true;
+            },
+            unlock: function(x, y) {
+                var p = [x, y].join(' ');
+                delete this.locked[p];
+                return true;
+            },
+            is_locked: function(x, y) {
+                var p = [x, y].join(' ');
+                return !!this.locked[p];
+            },
         };
-
 
         self.live = function(data) {
             if (!self.unit) {
-                self.unit = new unit.Unit(self, 'Builder1', 3, 3);
-                self.objects.push(self.unit);
+                self.unit = new unit.Unit(self, 'Builder1', 1, 1);
+                self.unit.selected = true;
+                self.add(self.unit);
             }
             if (!self.base) {
                 self.base = new Base(self, 8, 2);
-                self.objects.push(self.base);
+                self.add(self.base);
             }
 
             self.scrollLive(data.now);
@@ -201,16 +281,18 @@ define(['../sprites', '../gameloop', './unit'], function(sprites, gameloop, unit
         };
 
         self.render = function(canvas) {
-            self.terrain.setScroll(self.scrollX, self.scrollY);
+            canvas.world_scroll(self.scrollX, self.scrollY);
             self.terrain.render(canvas);
 
             _.each(self.objects, function(o) {
-                o.render(canvas, self.scrollX, self.scrollY);
+                o.render(canvas);
             });
+            self.frame && self.frame.render(canvas);
         };
 
         self.add = function(obj) {
             self.objects.push(obj);
+            obj.collider = collider;
         };
 
 

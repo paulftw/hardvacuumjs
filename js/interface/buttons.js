@@ -9,45 +9,9 @@ define(['../sprites', '../input'], function(sprites, input) {
             return (e.x > x && e.x < x + w && e.y > y && e.y < y + h);
         };
 
-        input.mousedown(function(e) {
-            if (!isHit(e)) {
-                // moved outside.
-                self.pressed = false;
-                return true;
-            }
-            self.pressed = true;
-            return false;
-        });
-
-        input.mousemove(function(e) {
-            if (!isHit(e)) {
-                // moved outside.
-                self.pressed = false;
-                return true;
-            }
-            self.pressed = input.mouse.LMB || input.mouse.RMB;
-            return false;
-        });
-
-        input.mouseup(function(e) {
-            if (!isHit(e)) {
-                // moved outside.
-                self.pressed = false;
-                return true;
-            }
-            self.pressed = false;
-            self.trigger('click');
-            return false;
-        });
-
         self.updateStatus = function(e) {
-            if (e.changed.length != 1) {
-                self.pressed = false;
-                return;
-            }
-            var hit = isHit({ x: e.changed[0].x, y: e.changed[0].y }) &&
-                      isHit({ x: e.changed[0].startX, y: e.changed[0].startY });
-            self.pressed = self.pressed && cur;
+            var hit = isHit({ x: e.x, y: e.y });
+            self.pressed = self.pressed && hit;
         };
 
         self.listenTo(input.Input, 'touchstart', function(e) {
@@ -71,10 +35,16 @@ define(['../sprites', '../input'], function(sprites, input) {
             return true;
         });
 
-        // TODO - listenTo touchcancel
+        self.listenTo(input.Input, 'touchend', function(e) {
+            self.pressed = false;
+        });
 
         self.render = function(canvas) {
-            self.pressed && self.drawDown(canvas);
+            if (self.pressed) {
+                self.drawDown(canvas);
+            } else {
+                self.drawUp(canvas);
+            }
         };
 
         return self;

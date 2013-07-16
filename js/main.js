@@ -1,6 +1,6 @@
 define([
         'screen', 'input', 'interface/interface',
-        'terrain/terrain', 'world/world', 'world/tank'
+        'world/terrain', 'world/world', 'world/tank'
        ], function(screen, input, interface, terrain, world, tank) {
 
   input.init('maincanvas');
@@ -26,7 +26,7 @@ define([
 
   interface.buttons.hummer.on('click', function() {
       // hummer clicked. Spawn a random worker.
-      var type = (1 + Math.floor(Math.random()*5));
+      var type = (1 + Math.floor(Math.random()*4));
       var bot = new mod_world.RoamingBot(world, 'Builder' + type, 3, 2);
       bot.speed = 1100 - type * 200;
       world.add(bot);

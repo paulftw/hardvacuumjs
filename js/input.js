@@ -1,39 +1,15 @@
 define([], function() {
     document.ontouchstart = function(e) {
         // this disables any drags and resizes.
-        e.preventDefault(); 
+        e.preventDefault();
     };
 
     var $canvas = null;
     var canvas_x = 0;
     var canvas_y = 0;
     var canvas_zoom = 1;
-    var mouseState = {};
 
-    var initMouse = function() {
-        mouseState.LMB = false;
-        mouseState.RMB = false;
-
-        $(document).mousedown(function(e){
-            if(e.which === 1) mouseState.LMB = true;
-            if(e.which === 3) mouseState.RMB = true;
-        });
-        $(document).mouseup(function(e){
-            if(e.which === 1) mouseState.LMB = false;
-            if(e.which === 3) mouseState.RMB = false;
-        });
-
-        function tweakMouseMoveEvent(e){
-            // If left button is not set, set which to 0
-            // This indicates no buttons pressed
-            if(e.which === 1 && !mouseState.LMB) e.which = 0;
-        }
-
-        $(document).mousemove(function(e) {
-            // Call the tweak function to check for LMB and set correct e.which
-            tweakMouseMoveEvent(e);
-        });
-    };
+    var hammerjs = null;
 
     var touchPos = function(touch) {
         return {
@@ -45,51 +21,51 @@ define([], function() {
     var Input = {};
     _.extend(Input, Backbone.Events);
 
+    var translateTouchArray = function(a, currentTouches) {
+        return _.map(a, function(touch) {
+            var id = touch.identifier;
+            var pos = touchPos(touch);
+            var cur = currentTouches[id];
+            if (!cur) {
+                cur = currentTouches[id] = {
+                    id: id,
+                    startX: pos.x,
+                    startY: pos.y,
+                };
+            }
+            cur.x = pos.x;
+            cur.y = pos.y;
+            return cur;
+        });
+    };
+
     var initTouch = function() {
         var currentTouches = {};
         $canvas.on('touchstart', function(e) {
-            e = e.originalEvent;
-            var changed = [];
-            for (var i = 0; i < e.changedTouches.length; i++) {
-                 var tp = e.changedTouches[i];
-                 var id = tp.identifier;
-                 var pos = touchPos(tp);
-                 var touch = {
-                     id: id,
-                     startX: pos.x,
-                     startY: pos.y,
-                     x: pos.x,
-                     y: pos.y,
-                 };
-                 changed.push(touch);
-                 currentTouches[id] = touch;
-            }
             Input.trigger('touchstart', {
                 touches: currentTouches,
-                changed: changed,
+                changed: translateTouchArray(e.originalEvent.changedTouches, currentTouches)
+            });
+        });
+
+        $canvas.on('touchcancel', function(e) {
+            translateTouchArray(e.originalEvent.touches, currentTouches);
+            Input.trigger('touchcancel', {
+                touches: currentTouches,
+                changed: translateTouchArray(e.originalEvent.changedTouches, currentTouches),
             });
         });
 
         $canvas.on('touchend', function(e) {
-            e = e.originalEvent;
-            var tchanged = [];
-            for (var i = 0; i < e.changedTouches.length; i++) {
-                 var tp = e.changedTouches[i];
-                 var id = tp.identifier;
-                 var pos = touchPos(tp);
-                 var touch = {
-                     id: id,
-                     x: pos.x,
-                     y: pos.y,
-                     startX: currentTouches[id].startX,
-                     startY: currentTouches[id].startY,
-                 };
-                 tchanged.push(touch);
-                 delete currentTouches[id];
-            }
+            var changed = translateTouchArray(e.originalEvent.changedTouches, currentTouches);
+            // translate remaining touches to copy it to currentTouches.
+            translateTouchArray(e.originalEvent.touches, currentTouches);
             Input.trigger('touchend', {
                 touches: currentTouches,
-                changed: tchanged,
+                changed: changed,
+            });
+            _.each(changed, function(touch) {
+                delete currentTouches[touch.id];
             });
         });
     };
@@ -100,8 +76,35 @@ define([], function() {
         var offset = $canvas.offset();
         canvas_x = offset.left;
         canvas_y = offset.top;
-        initMouse();
         initTouch();
+        hammerjs = Hammer($canvas[0], {
+            prevent_default: false
+        });
+        hammerjs.on('tap', function(e) {
+            Input.trigger('tap', touchPos(e.gesture.center));
+        });
+        hammerjs.on('dragstart', function(e) {
+            Input.trigger('dragstart', touchPos(e.gesture.center));
+        });
+        hammerjs.on('drag', function(e) {
+            Input.trigger('drag', {
+                cur: touchPos(e.gesture.center),
+                start: touchPos(e.gesture.startEvent.center)
+            });
+        });
+        hammerjs.on('dragend', function(e) {
+            Input.trigger('dragend', {
+                cur: touchPos(e.gesture.center),
+                start: touchPos(e.gesture.startEvent.center)
+            });
+        });
+        hammerjs.on('touch', function(e) {
+            Input.trigger('touchstart', touchPos(e.gesture.center));
+        });
+        hammerjs.on('release', function(e) {
+            Input.trigger('touchend', touchPos(e.gesture.center));
+        });
+        /**/
     };
  
     var needOriginal = { 'touchstart': true, 'touchend': true, 'touchmove': true, 'touchcancel': true };
@@ -122,22 +125,8 @@ define([], function() {
         });
     };
 
-    var mousedown = function(callback, data) {
-        canvas_event('mousedown', callback, data);
-    };
-    var mouseup = function(callback, data) {
-        canvas_event('mouseup', callback, data);
-    };
-    var mousemove = function(callback, data) {
-        canvas_event('mousemove', callback, data);
-    };
-
     return {
         init: init,
         Input: Input,
-        mousedown: mousedown,
-        mousemove: mousemove,
-        mouseup: mouseup,
-        mouse: mouseState,
     };
 });

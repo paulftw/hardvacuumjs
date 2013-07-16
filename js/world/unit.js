@@ -1,4 +1,4 @@
-define(['../sprites', './geometry'], function(sprites, geometry) {
+define(['../sprites', './geometry', 'interface/outlines'], function(sprites, geometry, outlines) {
 
     var loadBuilder = function(index) {
         for (var dx = -1; dx <= 1; dx++) {
@@ -31,22 +31,33 @@ define(['../sprites', './geometry'], function(sprites, geometry) {
 
     Unit.prototype.randDir = function() {
         var newdir = null;
+        var count = 0;
         while (true) {
+            count++;
+            if (count > 10) {
+                return this.turn(geometry.random_direction(), this.speed / 5)
+                           .then(this.randDir);
+            }
+
             newdir = geometry.Directions[geometry.random_direction()];
 
             var tx = this.x + newdir.dx;
             var ty = this.y + newdir.dy;
             if (tx >= 0 && tx < this.world.sizeX && ty >= 0 && ty < this.world.sizeY) {
-                break;
+                if (this.collider.lock(tx, ty)) {
+                    break;
+                }
             }
         }
         var unit = this;
-        return this.turn(newdir.index, 200).then(function(turned) {
-            unit.animationTimer = unit.world.timer(400);            
+        return this.turn(newdir.index, this.speed / 5).then(function(turned) {
+            unit.animationTimer = unit.world.timer(unit.speed);            
             return unit.animationTimer.start().then(function() {
                 delete unit.animationTimer;
+                unit.collider.unlock(unit.x, unit.y);
                 unit.x += unit.dir.dx;
                 unit.y += unit.dir.dy;
+                unit.collider.lock(unit.x, unit.y);
                 return unit.randDir();
             });
         });
@@ -54,25 +65,29 @@ define(['../sprites', './geometry'], function(sprites, geometry) {
 
     Unit.prototype.init = function(now) {
         this.listenTo(this.world, 'tick', this.live);
+        this.collider.lock(this.x, this.y);
 
         this.dir = geometry.Directions[geometry.random_direction()];
         this.randDir();
         this.initialized = true;
     };
 
-    Unit.prototype.render = function(canvas, sx, sy) {
+    Unit.prototype.render = function(canvas) {
         var pos = this.getPosition();
-        var drawer = sprites.Drawer(this.sprite, {dx: this.dir.dx, dy: this.dir.dy},
-                                    pos.x - sx, 40 + pos.y - sy);
-        drawer(canvas);
+        var drawer = sprites.Drawer(this.sprite, {dx: this.dir.dx, dy: this.dir.dy});
+        canvas.world_draw(drawer, pos.x, pos.y);
+        if (this.selected) {
+            var f = new outlines.Frame(outlines.Frame.Colors.Green, '1111');
+            f.render(canvas, pos.x, pos.y);
+        }
     };
 
     Unit.prototype.getPosition = function() {
-        var x = 20 * this.x;
-        var y = 20 * this.y;
+        var x = this.x;
+        var y = this.y;
         if (this.animationTimer) {
-            x += 20 * this.dir.dx * this.animationTimer.progress();
-            y += 20 * this.dir.dy * this.animationTimer.progress();
+            x += this.dir.dx * this.animationTimer.progress();
+            y += this.dir.dy * this.animationTimer.progress();
         }
         return {x: x, y: y};
     };
