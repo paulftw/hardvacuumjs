@@ -2,6 +2,7 @@ define([], function() {
 
     var TransparentGreen = [0, 138, 118];
     var TransparentBlue = [64, 96, 128];
+    var TransparentDesatBlue = [47, 72, 97];
 
     var Sprites = {
 
@@ -163,7 +164,6 @@ define([], function() {
                 self.sprites[name] = self.sprites[name] || {};
                 imageData = cloneImage(imageData);
                 imageData = makeImage(filterChain(imageData, filters));
-                //console.log(name, JSON.stringify(options), imageData.width, imageData.height);
                 self.sprites[name][JSON.stringify(options)] = imageData;
             });
         },
@@ -199,7 +199,8 @@ define([], function() {
         ClearRectFilter: ClearRectFilter,
         ExtractRegionFilter: ExtractRegionFilter,
         TransparentGreen: TransparentGreen,
-        TransparentBlue: TransparentBlue
+        TransparentBlue: TransparentBlue,
+        TransparentDesatBlue: TransparentDesatBlue,
     };
 
 });

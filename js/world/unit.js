@@ -24,19 +24,25 @@ define(['../sprites', './geometry', 'interface/outlines'], function(sprites, geo
         this.x = x;
         this.y = y;
         this.speed = 800;
+
+        this.turnSpeed = 300;
+
         this.sprite = spriteName;
         this.initialized = false;
         this.dir = geometry.Directions[geometry.random_direction()];
     };
 
-    Unit.prototype.randDir = function() {
+    Unit.prototype.randDir = function(stepCount) {
+        if (stepCount < 0) {
+            return 0;
+        }
         var newdir = null;
         var count = 0;
         while (true) {
             count++;
             if (count > 10) {
-                return this.turn(geometry.random_direction(), this.speed / 5)
-                           .then(this.randDir);
+                return this.turn(geometry.random_direction())
+                           .then(_.partial(this.randDir, stepCount));
             }
 
             newdir = geometry.Directions[geometry.random_direction()];
@@ -50,17 +56,9 @@ define(['../sprites', './geometry', 'interface/outlines'], function(sprites, geo
             }
         }
         var unit = this;
-        return this.turn(newdir.index, this.speed / 5).then(function(turned) {
-            unit.animationTimer = unit.world.timer(unit.speed);            
-            return unit.animationTimer.start().then(function() {
-                delete unit.animationTimer;
-                unit.collider.unlock(unit.x, unit.y);
-                unit.x += unit.dir.dx;
-                unit.y += unit.dir.dy;
-                unit.collider.lock(unit.x, unit.y);
-                return unit.randDir();
-            });
-        });
+        return this.turn(newdir.index)
+                   .then(this.stepForward)
+                   .then(_.partial(this.randDir, stepCount - 1));
     };
 
     Unit.prototype.init = function(now) {
@@ -68,7 +66,7 @@ define(['../sprites', './geometry', 'interface/outlines'], function(sprites, geo
         this.collider.lock(this.x, this.y);
 
         this.dir = geometry.Directions[geometry.random_direction()];
-        this.randDir();
+        this.mover = this.randDir(5);
         this.initialized = true;
     };
 
@@ -98,11 +96,9 @@ define(['../sprites', './geometry', 'interface/outlines'], function(sprites, geo
         }
     };
 
-    Unit.prototype.turn = function(dir, stepTime) {
-        var turnPromise = Q.defer();
+    Unit.prototype.turn = function(dir) {
         if (this.dir.index == dir) {
-            turnPromise.resolve(0);
-            return turnPromise.promise;
+            return Q(0);
         }
 
         var plusDist = dir - this.dir.index;
@@ -120,12 +116,80 @@ define(['../sprites', './geometry', 'interface/outlines'], function(sprites, geo
         }
 
         var unit = this;
-        return this.world.timer(stepTime).start().then(function() {
+        return this.world.timer(unit.turnSpeed).start().then(function() {
             unit.dir = geometry.Directions[(8 + unit.dir.index + dirDelta) % 8];
-            return unit.turn(dir, stepTime).then(function(steps) {
+            return unit.turn(dir).then(function(steps) {
                 return steps + 1;
             });
         });
+    };
+
+    Unit.prototype.stepForward = function() {
+        this.animationTimer = this.world.timer(this.speed);
+        var newx = this.x + this.dir.dx;
+        var newy = this.y + this.dir.dy;
+        this.collider.lock(newx, newy);
+
+        var unit = this;
+        return this.animationTimer.start().then(function() {
+            delete unit.animationTimer;
+            unit.setPosition(newx, newy);
+        });
+    };
+    Unit.prototype.setPosition = function(x, y) {
+        this.collider.unlock(this.x, this.y);
+        this.x = x;
+        this.y = y;
+        this.collider.lock(this.x, this.y);
+    };
+
+    Unit.prototype.routePromise = function(x, y) {
+        if (x == this.x && y == this.y) {
+            return 0;
+        }
+
+        var tx = x;
+        var ty = y;
+        var tw = this.collider.is_locked(x, y) ? 10000 : 0;
+
+        if (tw > 0) {
+            var bd = 100000;
+            var bx=-100, by=-100;
+            for (var nx = Math.max(0, x-5); nx <= Math.min(this.world.sizeX, x+5); nx++) {
+                for (var ny = Math.max(0, y-5); ny <= Math.min(this.world.sizeY, y+5); ny++) {
+                    if (this.collider.is_locked(nx, ny)) {
+                        continue;
+                    }
+                    var d = (x-nx)*(x-nx) + (y-ny)*(y-ny);
+                    if (d<tw) { tw=d; tx=nx; ty=ny; }
+                }
+            }
+        }
+        if (tw > 1000) {
+            return 0;
+        }
+        x = tx; y = ty;
+        var path = this.collider.findPath(this.x, this.y, x, y);
+        if (!path.length) {
+            return 0;
+        }
+        var dest = path[1];
+        var nextDir = geometry.closest_direction(dest.x - this.x, dest.y - this.y);
+        dest.x = this.x + nextDir.dx;
+        dest.y = this.y + nextDir.dy;
+        this.collider.lock(dest.x, dest.y);
+        return this.turn(nextDir.index)
+                   .then(this.stepForward)
+                   .then(_.partial(this.routePromise, x, y));
+    };
+
+    Unit.prototype.moveTo = function(x, y) {
+        var unit = this;
+        if (this.mover) {
+            this.mover = this.mover.then(_.partial(this.routePromise,x, y));
+        } else {
+            this.mover = unit.routePromise(x, y);
+        }
     };
 
     return {

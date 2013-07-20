@@ -1,4 +1,4 @@
-define(['../sprites', './buttons'], function(sprites, buttons) {
+define(['../sprites', './buttons', './text'], function(sprites, buttons, text) {
 
     var InGameInterface = function() {
         var self = {};
@@ -23,6 +23,7 @@ define(['../sprites', './buttons'], function(sprites, buttons) {
             _.each(self.buttons, function(button) {
                 button.render(canvas);
             });
+            text.renderText('JAGA JAGA 1660', canvas, 8, 8);
         };
 
         self.live = function(timestamp) {

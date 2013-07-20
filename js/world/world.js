@@ -152,16 +152,37 @@ define(['../sprites', '../gameloop', './unit', 'input', 'interface/outlines'],
             var y = Math.floor((pos.y - 40 + self.scrollY) / 20);
             return {x:x, y:y};
         };
+
+        var dragStartX = null;
+        var dragStartY = null;
         self.listenTo(input.Input, 'drag', function(e) {
+            if (self.frame) {
+                return;
+            }
+            if (dragStartX === null) {
+                dragStartX = self.scrollX;
+                dragStartY = self.scrollY;
+            }
+            var dx = e.start.x - e.cur.x;
+            var dy = e.start.y - e.cur.y;
+            self.scrollTo(dragStartX + dx, dragStartY + dy);
+        });
+        self.listenTo(input.Input, 'dragend', function(e) {
+            dragStartX = dragStartY = null;
+        });
+
+        self.listenTo(input.Input, 'transform', function(e) {
             var p1 = resolveInput(e.cur);
             var p2 = resolveInput(e.start);
             self.frame = new outlines.RectFrame(outlines.Frame.Colors.Red, Math.min(p1.x, p2.x), Math.min(p1.y, p2.y),
                                    Math.max(p1.x, p2.x), Math.max(p1.y, p2.y));
         });
-        self.listenTo(input.Input, 'dragend', function(e) {
-            self.selectAll(self.frame.x1, self.frame.y1, self.frame.x2 + 1, self.frame.y2 + 1);
+        self.listenTo(input.Input, 'transformend', function(e) {
+            self.frame && self.selectAll(self.frame.x1, self.frame.y1, self.frame.x2 + 1, self.frame.y2 + 1);
+            e && e.gesture && e.gesture.stopDetect();
             delete self.frame;
         });
+
         self.listenTo(input.Input, 'tap', function(e) {
             if (e.x >= 240 || e.y < 40) {
                 return;
@@ -171,6 +192,9 @@ define(['../sprites', '../gameloop', './unit', 'input', 'interface/outlines'],
             if (tg.length) {
                 self.selectAll(pos.x, pos.y, pos.x + 1, pos.y + 1);
             } else {
+                _.each(self.getSelected(), function(o) {
+                    o.moveTo && o.moveTo(pos.x, pos.y);
+                });
             }
         });
 
@@ -202,31 +226,18 @@ define(['../sprites', '../gameloop', './unit', 'input', 'interface/outlines'],
 
         self.lastScrollTime = -1;
 
-        self.scrollLive = function(now) {
-            if (self.lastScrollTime == -1) {
-                self.lastScrollTime = now;
-                return;
-            }
-            var target = self.unit.getPosition();
-            target.x = target.x*20 - 110;
-            target.y = target.y*20 - 90;
-            target.x = Math.max(target.x, 0);
-            target.y = Math.max(target.y, 0);
+        self.scrollTo = function(targetX, targetY) {
+            targetX = Math.max(targetX, 0);
+            targetY = Math.max(targetY, 0);
 
-            target.x = Math.min(target.x, self.terrain.width * 20 - 240);
-            target.y = Math.min(target.y, self.terrain.height * 20 - 160);
+            targetX = Math.min(targetX, self.terrain.width * 20 - 240);
+            targetY = Math.min(targetY, self.terrain.height * 20 - 160);
 
-            var dx = (target.x - self.scrollX);
-            var dy = (target.y - self.scrollY);
-            var d = Math.sqrt(dx * dx + dy * dy);
+            var dx = (targetX - self.scrollX);
+            var dy = (targetY - self.scrollY);
 
-            var travel = (now - self.lastScrollTime) * self.scrollPxPerMs;
-            if (travel > 0.0001 && d > travel) {
-                dx = dx / d * travel;
-                dy = dy / d * travel;
-            }
-            self.scrollX += dx;
-            self.scrollY += dy;
+            self.scrollX = targetX;
+            self.scrollY = targetY;
         };
 
         for (var i = 0; i < 4; i++) {
@@ -260,6 +271,23 @@ define(['../sprites', '../gameloop', './unit', 'input', 'interface/outlines'],
                 var p = [x, y].join(' ');
                 return !!this.locked[p];
             },
+            findPath: function(x1, y1, x2, y2) {
+                if (this.is_locked(x2, y2)) {
+                    return [];
+                }
+                var grid = new PF.Grid(self.sizeX, self.sizeY);
+                for (var x = 0; x < self.sizeX; x++) {
+                    for (var y = 0; y < self.sizeY; y++) {
+                         grid.setWalkableAt(x, y, !this.is_locked(x, y));
+                    }
+                }
+                grid.setWalkableAt(x1, y1, true);
+                var finder = new PF.JumpPointFinder();
+                var path = finder.findPath(x1, y1, x2, y2, grid);
+                return _.map(path, function(p) {
+                    return { x: p[0], y: p[1] };
+                });
+            },
         };
 
         self.live = function(data) {
@@ -272,8 +300,6 @@ define(['../sprites', '../gameloop', './unit', 'input', 'interface/outlines'],
                 self.base = new Base(self, 8, 2);
                 self.add(self.base);
             }
-
-            self.scrollLive(data.now);
 
             _.each(self.objects, function(o) {
                 o.live(data.now);

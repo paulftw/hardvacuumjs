@@ -25,7 +25,7 @@ define([], function() {
         if (dy == 0) {
             return dx > 0 ? Directions[0] : Directions[4];
         }
-        var corner = Math.atan2(dx, -dy);
+        var corner = Math.atan2(-dy, dx);
         return Directions[ Math.round((corner + Math.PI * 2) / PI_4) % 8 ];
     };
 
